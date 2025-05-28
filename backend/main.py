@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 from database import get_session, init_db, engine
 from mailer import send_email
 from models import WatchConfiguration, Case, Dial, Hands, Strap, Box, SQLModel
+from fastapi import Request
 
 
 app = FastAPI(title="SeimastersCraft API")
@@ -59,42 +60,49 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
     return JSONResponse(content=components)
 
 @app.post("/order")
-def create_order(order: WatchConfiguration, session: Session = Depends(get_session)):
+def submit_order(order: WatchConfiguration, session: Session = Depends(get_session)):
+
     session.add(order)
     session.commit()
     session.refresh(order)
 
-    # Email korisniku
+    # Email body
+    def format_html(order):
+        return f"""
+        <h3>Hvala na narudžbi!</h3>
+        <p><strong>Konfiguracija sata:</strong></p>
+        <ul>
+            <li><strong>Kućište:</strong> {order.case}</li>
+            <li><strong>Brojčanik:</strong> {order.dial}</li>
+            <li><strong>Kazaljke:</strong> {order.hands}</li>
+            <li><strong>Remen:</strong> {order.strap}</li>
+            <li><strong>Kutija:</strong> {order.box}</li>
+            <li><strong>Gravura:</strong> {order.engraving or 'Nema'}</li>
+        </ul>
+        <p><strong>Ukupna cijena:</strong> {order.price} €</p>
+        <p><strong>Podaci za dostavu:</strong></p>
+        <ul>
+            <li><strong>Ime:</strong> {order.customer_name} {order.customer_surname}</li>
+            <li><strong>Adresa:</strong> {order.customer_address}, {order.customer_city}, {order.customer_postcode}</li>
+            <li><strong>Broj mobitela:</strong> {order.customer_phone}</li>
+            <li><strong>Email:</strong> {order.customer_email}</li>
+            <li><strong>Način plaćanja:</strong> {order.payment_method}</li>
+        </ul>
+        <p><em>Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.</em></p>
+        """
+
+    html = format_html(order)
+    plain = "Hvala na narudžbi!\nVaš sat je uspješno naručen."
+
     try:
-        subject = "Potvrda narudžbe - SeimastersCraft"
-        body_plain = f"Hvala na narudžbi, {order.customer_name}!"
-        body_html = f"""
-        <html><body>
-        <h2>Hvala na narudžbi, {order.customer_name}!</h2>
-        <p>Primili smo vašu konfiguraciju sata s ukupnom cijenom {order.price} €.</p>
-        </body></html>
-        """
-        send_email(order.customer_email, subject, body_plain, body_html)
-
-        # Email adminu
-        admin_body = f"""
-        <html><body>
-        <h3>Nova narudžba od {order.customer_name} {order.customer_surname}</h3>
-        <p>Email: {order.customer_email}</p>
-        <p>Telefon: {order.customer_phone}</p>
-        <p>Adresa: {order.customer_address}, {order.customer_city}, {order.customer_postcode}</p>
-        <p>Konfiguracija: {order.case}, {order.dial}, {order.hands}, {order.strap}, {order.box}</p>
-        <p>Cijena: {order.price} €</p>
-        <p>Plaćanje: {order.payment_method}</p>
-        <p>Gravura: {order.engraving}</p>
-        </body></html>
-        """
-        send_email(GMAIL_USER, f"Nova narudžba od {order.customer_name}", body_plain, admin_body)
-
+        # 1. Kupac
+        send_email(order.customer_email, "Potvrda narudžbe – SeimastersCraft", plain, html)
+        # 2. Admin
+        send_email("seimasterswatches@gmail.com", f"Nova narudžba od {order.customer_email}", plain, html)
     except Exception as e:
-        print("Greška prilikom slanja maila:", str(e))
+        print("Greška prilikom slanja maila:", e)
 
-    return {"message": "Narudžba je zaprimljena!"}    
+    return {"message": "Narudžba zaprimljena, potvrda poslana emailom."} 
 
 # Pokretanje servera kad se main.py izvršava direktno
 if __name__ == "__main__":
