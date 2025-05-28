@@ -19,12 +19,9 @@ def seed_from_folder(model, folder_path):
         # Izvući cijenu iz zadnjeg dijela naziva
         price_match = re.search(r'(\d+)', parts[-1])
         price = float(price_match.group(1)) if price_match else 0
-        
-        # Sastavi ime bez cijene i bez "mm"
-        # Ovdje ukloni i cijenu iz naziva
+        # Sastavi ime bez cijene i bez "mm" ili "Mm"  
         name_parts = parts[:-1]
-        # ukloni "mm" ako postoji u nazivu
-        name_clean = " ".join(part.replace("mm", "") for part in name_parts).strip()
+        name_clean = " ".join(part.replace("mm", "").replace("Mm", "") for part in name_parts).strip()
         components.append((name_clean.title(), price))
 
     with Session(engine) as session:

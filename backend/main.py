@@ -46,15 +46,14 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
         price_match = re.search(r'(\d+)', parts[-1])
         price = float(price_match.group(1)) if price_match else 0
         
-        # Sastavi ime bez cijene i "mm"
-        name_parts = parts[:-1]
-        name_clean = " ".join(part.replace("mm", "") for part in name_parts).strip()
-        
-        components.append({
-            "name": name_clean.title(),
-            "filename": filename,
-            "price": price
-        })
+name_parts = parts[:-1]
+# ukloni i "mm" i "Mm" ako postoje u nazivima
+name_clean = " ".join(part.replace("mm", "").replace("Mm", "") for part in name_parts).strip()
+components.append({
+    "name": name_clean.title(),
+    "filename": filename,
+    "price": price
+})
 
     return JSONResponse(content=components)
 
