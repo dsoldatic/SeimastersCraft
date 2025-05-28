@@ -56,6 +56,44 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
 
     return JSONResponse(content=components)
 
+@app.post("/order")
+def create_order(order: WatchConfiguration, session: Session = Depends(get_session)):
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+
+    # Email korisniku
+    try:
+        subject = "Potvrda narudžbe - SeimastersCraft"
+        body_plain = f"Hvala na narudžbi, {order.customer_name}!"
+        body_html = f"""
+        <html><body>
+        <h2>Hvala na narudžbi, {order.customer_name}!</h2>
+        <p>Primili smo vašu konfiguraciju sata s ukupnom cijenom {order.price} €.</p>
+        </body></html>
+        """
+        send_email(order.customer_email, subject, body_plain, body_html)
+
+        # Email adminu
+        admin_body = f"""
+        <html><body>
+        <h3>Nova narudžba od {order.customer_name} {order.customer_surname}</h3>
+        <p>Email: {order.customer_email}</p>
+        <p>Telefon: {order.customer_phone}</p>
+        <p>Adresa: {order.customer_address}, {order.customer_city}, {order.customer_postcode}</p>
+        <p>Konfiguracija: {order.case}, {order.dial}, {order.hands}, {order.strap}, {order.box}</p>
+        <p>Cijena: {order.price} €</p>
+        <p>Plaćanje: {order.payment_method}</p>
+        <p>Gravura: {order.engraving}</p>
+        </body></html>
+        """
+        send_email(GMAIL_USER, f"Nova narudžba od {order.customer_name}", body_plain, admin_body)
+
+    except Exception as e:
+        print("Greška prilikom slanja maila:", str(e))
+
+    return {"message": "Narudžba je zaprimljena!"}    
+
 # Pokretanje servera kad se main.py izvršava direktno
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
