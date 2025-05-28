@@ -1,20 +1,23 @@
-# koristimo službeni Python 3.11 image
+# 1. baza sa distutils
 FROM python:3.11-slim
 
-# radni direktorij
+# 2. instaliraj ono što ti fali u slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      python3-distutils \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# kopiraj samo requirements pa instaliraj (iskoristi Docker cache)
+# 3. requirements
 COPY requirements.txt .
-
-# instaliraj sve dependencyje
 RUN pip install --no-cache-dir -r requirements.txt
 
-# kopiraj ostatak koda
+# 4. ostatak
 COPY . .
 
-# expose porta (Railway automatski preusmjeri $PORT okoline)
 EXPOSE 8000
 
-# komanda za startanje
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 5. moramo ekspandirati $PORT, zato
+CMD ["sh","-c","uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
