@@ -1,18 +1,25 @@
 import os
 import re
 import uvicorn
+from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from database import get_session, init_db, engine
 from mailer import send_email
 from models import WatchConfiguration, Case, Dial, Hands, Strap, Box, SQLModel
 
+# === NOVO: mountanje slika ===
+IMG_DIR = Path(__file__).parent / "img"
 app = FastAPI(title="SeimastersCraft API")
+if IMG_DIR.exists():
+    app.mount("/img", StaticFiles(directory=str(IMG_DIR)), name="images")
 
+# === CORS ===
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# inicijalna izrada tablica i seedanje
+# === INICIJALNA BAZA ===
 init_db()
 def init_components():
     SQLModel.metadata.create_all(engine)
@@ -39,10 +46,7 @@ init_components()
 
 
 @app.post("/order")
-def create_order(
-    config: WatchConfiguration,
-    session: Session = Depends(get_session)
-):
+def create_order(config: WatchConfiguration, session: Session = Depends(get_session)):
     existing = session.exec(
         select(WatchConfiguration).where(
             WatchConfiguration.case == config.case,
@@ -126,12 +130,7 @@ Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.
 """
 
     send_email(config.customer_email, subject, body_plain, body_html)
-    send_email(
-        os.environ["GMAIL_USER"],
-        "Nova narudžba",
-        body_plain,
-        body_html,
-    )
+    send_email(os.environ["GMAIL_USER"], "Nova narudžba", body_plain, body_html)
 
     return {"message": f"Narudžba primljena! Ukupna cijena: {config.price:.2f} €"}
 
@@ -155,11 +154,7 @@ def list_components(typ: str, session: Session = Depends(get_session)):
     return session.exec(select(model)).all()
 
 
-@app.get("/image-components")
-def image_components(type: str = Query(..., regex="^(case|dial|hands|strap|box)$")):
-    raise HTTPException(404, "Serviranje slika je onemogućeno na backendu.")
-
-
+# === Start server ===
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
