@@ -8,16 +8,13 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-img_path = Path(__file__).parent / "static" / "img"
-if img_path.exists():
-    app.mount("/img", StaticFiles(directory=img_path), name="img")
-    
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
 from database import get_session, init_db, engine
 from mailer import send_email
 from models import WatchConfiguration, Case, Dial, Hands, Strap, Box, SQLModel
+
 
 app = FastAPI(title="SeimastersCraft API")
 
@@ -28,6 +25,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+img_path = Path(__file__).parent / "static" / "img"
+if img_path.exists():
+    app.mount("/img", StaticFiles(directory=img_path), name="img")
 
 # Inicijalna izrada tablica i seedanje
 init_db()
