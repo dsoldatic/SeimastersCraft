@@ -15,36 +15,36 @@
       <select v-model="form.case" required>
         <option disabled value="">Odaberi kućište</option>
         <option v-for="c in components.cases" :key="c.filename" :value="c.name">
-          {{ c.name }} – {{ c.price }} €
-        </option>
+  {{ c.name }}
+</option>
       </select>
 
       <select v-model="form.dial" required>
         <option disabled value="">Odaberi brojčanik</option>
-        <option v-for="d in components.dials" :key="d.filename" :value="d.name">
-          {{ d.name }} – {{ d.price }} €
-        </option>
+       <option v-for="c in components.dials" :key="c.filename" :value="c.name">
+  {{ c.name }}
+</option>
       </select>
 
       <select v-model="form.hands" required>
         <option disabled value="">Odaberi kazaljke</option>
-        <option v-for="h in components.hands" :key="h.filename" :value="h.name">
-          {{ h.name }} – {{ h.price }} €
-        </option>
+        <option v-for="c in components.hands" :key="c.filename" :value="c.name">
+  {{ c.name }}
+</option>
       </select>
 
       <select v-model="form.strap" required>
         <option disabled value="">Odaberi remen</option>
-        <option v-for="s in components.straps" :key="s.filename" :value="s.name">
-          {{ s.name }} – {{ s.price }} €
-        </option>
+        <option v-for="c in components.straps" :key="c.filename" :value="c.name">
+  {{ c.name }}
+</option>
       </select>
 
       <select v-model="form.box" required>
         <option disabled value="">Odaberi kutiju</option>
-        <option v-for="b in components.boxes" :key="b.filename" :value="b.name">
-          {{ b.name }} – {{ b.price }} €
-        </option>
+        <option v-for="c in components.boxes" :key="c.filename" :value="c.name">
+  {{ c.name }}
+</option>
       </select>
 
       <input v-model="form.engraving"
