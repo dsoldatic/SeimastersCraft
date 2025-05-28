@@ -1,11 +1,13 @@
 import os
 import re
-import uvicorn  
+import uvicorn
+
 from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from models import (
@@ -14,8 +16,20 @@ from models import (
 from database import get_session, init_db, engine
 from mailer import send_email
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 1) Kreiraj FastAPI app
+# ──────────────────────────────────────────────────────────────────────────────
 app = FastAPI(title="SeimastersCraft API")
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 2) Montiraj statičke slike iz frontenda pod /img
+# ──────────────────────────────────────────────────────────────────────────────
+img_path = Path(__file__).parent.parent / "frontend" / "watchcraft-frontend" / "public" / "img"
+app.mount("/img", StaticFiles(directory=img_path), name="images")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3) Omogući CORS za front-end
+# ──────────────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,10 +38,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# inicijalna izrada tablica
+# ──────────────────────────────────────────────────────────────────────────────
+# 4) Inicijaliziraj bazu i seedaj prve komponente
+# ──────────────────────────────────────────────────────────────────────────────
 init_db()
 
-# seedanje podataka, samo ako još nemaš komponente
 def init_components():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -43,10 +58,16 @@ def init_components():
 
 init_components()
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 5) API endpointi
+# ──────────────────────────────────────────────────────────────────────────────
 
 @app.post("/order")
-def create_order(config: WatchConfiguration, session: Session = Depends(get_session)):
-    # provjera duplikata
+def create_order(
+    config: WatchConfiguration,
+    session: Session = Depends(get_session)
+):
+    # 5.1) Provjera duplikata
     existing = session.exec(
         select(WatchConfiguration).where(
             WatchConfiguration.case == config.case,
@@ -69,7 +90,7 @@ def create_order(config: WatchConfiguration, session: Session = Depends(get_sess
     if existing:
         raise HTTPException(status_code=400, detail="Ova narudžba je već poslana.")
 
-    # ako frontend nije poslao price, izračunaj ovdje
+    # 5.2) Izračun cijene ako frontend nije poslao
     if not config.price:
         def get_price(model, name):
             return session.exec(select(model.price).where(model.name == name)).first() or 0
@@ -81,12 +102,13 @@ def create_order(config: WatchConfiguration, session: Session = Depends(get_sess
             get_price(Box, config.box)
         )
 
+    # Spremi narudžbu
     session.add(config)
     session.commit()
     session.refresh(config)
 
+    # Pripremi mailove
     subject = "Potvrda narudžbe – SeimastersCraft"
-    # plain text
     body_plain = f"""
 Hvala na narudžbi!
 
@@ -109,7 +131,6 @@ Način plaćanja: {config.payment_method}
 
 Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.
 """
-    # HTML verzija
     body_html = f"""
 <p>Hvala na narudžbi!</p>
 <h3>Konfiguracija sata:</h3>
@@ -132,17 +153,14 @@ Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.
 </ul>
 <p><em>Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.</em></p>
 """
-
     send_email(config.customer_email, subject, body_plain, body_html)
     send_email("seimasterswatches@gmail.com", "Nova narudžba", body_plain, body_html)
 
     return {"message": f"Narudžba primljena! Ukupna cijena: {config.price:.2f} €"}
 
-
 @app.get("/admin/configurations", response_model=List[WatchConfiguration])
 def get_all_configurations(session: Session = Depends(get_session)):
     return session.exec(select(WatchConfiguration)).all()
-
 
 @app.get("/components/cases", response_model=List[Case])
 def get_cases(session: Session = Depends(get_session)):
@@ -167,20 +185,18 @@ def get_boxes(session: Session = Depends(get_session)):
 @app.get("/components")
 def get_components(session: Session = Depends(get_session)):
     return {
-        "cases": session.exec(select(Case)).all(),
-        "dials": session.exec(select(Dial)).all(),
-        "hands": session.exec(select(Hands)).all(),
+        "cases":  session.exec(select(Case)).all(),
+        "dials":  session.exec(select(Dial)).all(),
+        "hands":  session.exec(select(Hands)).all(),
         "straps": session.exec(select(Strap)).all(),
-        "boxes": session.exec(select(Box)).all()
+        "boxes":  session.exec(select(Box)).all(),
     }
-
 
 @app.get("/image-components")
 def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|box)$")):
-    folder = Path(__file__).parent.parent / "frontend" / "watchcraft-frontend" / "public" / "img" / type
+    folder = img_path / type
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder ne postoji.")
-
     components = []
     for file in folder.glob("*.png"):
         match = re.match(rf"{type}-([a-z0-9\-]+)-(\d+)[€]?.png", file.name, re.IGNORECASE)
@@ -188,16 +204,15 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
             name  = match.group(1).replace("-", " ").title()
             price = int(match.group(2))
             components.append({
-                "name": name,
-                "price": price,
+                "name":     name,
+                "price":    price,
                 "filename": f"{type}/{file.name}"
             })
     return components
 
-
-# ---------------------------------------------
-# Pokretanje servera kad se main.py izvršava direktno
-# ---------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# 6) Pokretanje s uvicorn kad izravno pokrećeš `python main.py`
+# ──────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
