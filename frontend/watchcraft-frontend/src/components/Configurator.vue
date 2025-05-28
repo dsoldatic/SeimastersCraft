@@ -130,11 +130,14 @@ export default {
       alert(data.message);
       this.resetForm();
     },
-    setImage(type, name) {
-      const map = { case: "cases", dial: "dials", hands: "hands", strap: "straps", box: "boxes" };
-      const item = this.components[map[type]].find(x => x.name === name);
-      this.selectedImages[type] = item ? item.filename : "";
-    }
+setImage(type, name) {
+  const map = { case: "cases", dial: "dials", hands: "hands", strap: "straps", box: "boxes" };
+  const item = this.components[map[type]].find(
+    x => x.name.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+  console.log(`[SET IMAGE] ${type}:`, name, '->', item?.filename); // debug
+  this.selectedImages[type] = item ? item.filename : "";
+}
   },
   watch: {
     "form.case"(v)  { this.calculatePrice(); this.setImage("case", v); },
