@@ -2,6 +2,9 @@ from sqlmodel import Session, create_engine, select
 from models import Case, Dial, Hands, Strap, Box
 from pathlib import Path
 import re
+from database import init_db
+
+init_db()
 
 engine = create_engine("sqlite:///watchcraft.db")
 
