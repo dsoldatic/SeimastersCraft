@@ -45,9 +45,13 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
         parts = base.split("-")[1:]
         price_match = re.search(r'(\d+)', parts[-1])
         price = float(price_match.group(1)) if price_match else 0
-        name = " ".join(parts[:-1]) + f" - {price} €"
+        
+        # Sastavi ime bez cijene i "mm"
+        name_parts = parts[:-1]
+        name_clean = " ".join(part.replace("mm", "") for part in name_parts).strip()
+        
         components.append({
-            "name": name.title(),
+            "name": name_clean.title(),
             "filename": filename,
             "price": price
         })
