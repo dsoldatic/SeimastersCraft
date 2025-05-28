@@ -1,9 +1,11 @@
+import os
+import re
+from pathlib import Path
+from typing import List
+
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
-from typing import List
-from pathlib import Path
-import re
 
 from models import (
     WatchConfiguration, Case, Dial, Hands, Strap, Box, SQLModel
@@ -43,6 +45,7 @@ init_components()
 
 @app.post("/order")
 def create_order(config: WatchConfiguration, session: Session = Depends(get_session)):
+    # provjera duplikata
     existing = session.exec(
         select(WatchConfiguration).where(
             WatchConfiguration.case == config.case,
@@ -65,6 +68,7 @@ def create_order(config: WatchConfiguration, session: Session = Depends(get_sess
     if existing:
         raise HTTPException(status_code=400, detail="Ova narudžba je već poslana.")
 
+    # ako frontend nije poslao price, izračunaj ovdje
     if not config.price:
         def get_price(model, name):
             return session.exec(select(model.price).where(model.name == name)).first() or 0
@@ -81,7 +85,7 @@ def create_order(config: WatchConfiguration, session: Session = Depends(get_sess
     session.refresh(config)
 
     subject = "Potvrda narudžbe – SeimastersCraft"
-
+    # plain text
     body_plain = f"""
 Hvala na narudžbi!
 
@@ -104,7 +108,7 @@ Način plaćanja: {config.payment_method}
 
 Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.
 """
-
+    # HTML verzija
     body_html = f"""
 <p>Hvala na narudžbi!</p>
 <h3>Konfiguracija sata:</h3>
@@ -188,3 +192,11 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
                 "filename": f"{type}/{file.name}"
             })
     return components
+
+
+# ---------------------------------------------
+# Pokretanje servera kad se main.py izvršava direktno
+# ---------------------------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
