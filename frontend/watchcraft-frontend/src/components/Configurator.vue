@@ -199,8 +199,8 @@ button {
 }
 .layer.box-layer {
   top: 90%;
-  left: 120%;
-  width: 50%;
+  left: 90%;
+  width: 40%;
   transform: translate(-50%, -50%);
 }
 </style>
