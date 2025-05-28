@@ -7,6 +7,11 @@ from typing import List
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+img_path = Path(__file__).parent / "static" / "img"
+if img_path.exists():
+    app.mount("/img", StaticFiles(directory=img_path), name="img")
+    
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
@@ -30,7 +35,7 @@ init_db()
 
 @app.get("/image-components")
 def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|box)$")):
-    folder = Path(__file__).parent.parent / "frontend" / "watchcraft-frontend" / "public" / "img" / type
+    folder = Path(__file__).parent / "static" / "img" / type
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder ne postoji.")
 
@@ -38,11 +43,10 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
     for file in folder.glob("*.png"):
         filename = file.name
         base = filename.replace(".png", "")
-        parts = base.split("-")[1:]  # Makni 'case', 'dial' itd.
+        parts = base.split("-")[1:]
         price_match = re.search(r'(\d+)', parts[-1])
         price = float(price_match.group(1)) if price_match else 0
         name = " ".join(parts[:-1]) + f" - {price} €"
-
         components.append({
             "name": name.title(),
             "filename": filename,
@@ -50,7 +54,6 @@ def get_image_components(type: str = Query(..., regex="^(case|dial|hands|strap|b
         })
 
     return JSONResponse(content=components)
-
 
 # Pokretanje servera kad se main.py izvršava direktno
 if __name__ == "__main__":
