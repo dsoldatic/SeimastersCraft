@@ -3,8 +3,11 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-GMAIL_USER = os.environ["GMAIL_USER"]
-GMAIL_PASS = os.environ["GMAIL_PASS"]
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_PASS = os.getenv("GMAIL_PASS")
+ 
+if not GMAIL_USER or not GMAIL_PASS:
+  raise RuntimeError("GMAIL_USER i GMAIL_PASS env varijable moraju biti postavljene")
 
 def send_email(to_email: str, subject: str, body_plain: str, body_html: str):
     msg = MIMEMultipart("alternative")
