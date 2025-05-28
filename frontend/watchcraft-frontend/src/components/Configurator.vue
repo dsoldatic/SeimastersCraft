@@ -1,14 +1,13 @@
 <template>
   <div class="form-container">
-    <!-- logo u gornjem lijevom kutu -->
-    <img src="/img/logo.png" alt="Seimasters Watches" class="logo" />
+    <img :src="`${baseImageURL}/logo.png`" alt="Seimasters Watches" class="logo" />
 
     <div class="watch-preview">
-      <img v-if="selectedImages.strap" :src="`/img/${selectedImages.strap}`" class="layer" alt="Strap" />
-      <img v-if="selectedImages.case"  :src="`/img/${selectedImages.case}`"  class="layer" alt="Case" />
-      <img v-if="selectedImages.dial"  :src="`/img/${selectedImages.dial}`"  class="layer" alt="Dial" />
-      <img v-if="selectedImages.hands" :src="`/img/${selectedImages.hands}`" class="layer" alt="Hands" />
-      <img v-if="selectedImages.box"   :src="`/img/${selectedImages.box}`"   class="layer box-layer" alt="Box" />
+      <img v-if="selectedImages.strap" :src="`${baseImageURL}/strap/${selectedImages.strap}`" class="layer" alt="Strap" />
+      <img v-if="selectedImages.case"  :src="`${baseImageURL}/case/${selectedImages.case}`"  class="layer" alt="Case" />
+      <img v-if="selectedImages.dial"  :src="`${baseImageURL}/dial/${selectedImages.dial}`"  class="layer" alt="Dial" />
+      <img v-if="selectedImages.hands" :src="`${baseImageURL}/hands/${selectedImages.hands}`" class="layer" alt="Hands" />
+      <img v-if="selectedImages.box"   :src="`${baseImageURL}/box/${selectedImages.box}`"   class="layer box-layer" alt="Box" />
     </div>
 
     <h2>Konfiguriraj svoj sat</h2>
@@ -76,6 +75,7 @@
 export default {
   data() {
     return {
+      baseImageURL: "https://seimasterscraft-production.up.railway.app/img",
       defaultForm: {
         case: "", dial: "", hands: "", strap: "", box: "",
         engraving: "",
