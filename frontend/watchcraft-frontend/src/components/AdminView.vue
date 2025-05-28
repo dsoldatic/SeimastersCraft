@@ -53,9 +53,8 @@ export default {
     }
   },
   async mounted() {
-    const res = await fetch("http://127.0.0.1:8000/admin/configurations");
-    const data = await res.json();
-    this.orders = data;
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/configurations`);
+    this.orders = await res.json();
   }
 }
 </script>
