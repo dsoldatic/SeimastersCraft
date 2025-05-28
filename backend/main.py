@@ -1,27 +1,17 @@
 import os
 import re
 import uvicorn
-from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from database import get_session, init_db, engine
 from mailer import send_email
 from models import WatchConfiguration, Case, Dial, Hands, Strap, Box, SQLModel
 
-# --- MOUNT STATIC FILES (SAMO AKO POSTOJI) ---
-# pretpostavka: repozitorij ima /frontend/watchcraft-frontend/public/img
-# a u Railway-u kopiraš cijeli repo u /app
-IMG_DIR = Path(__file__).parent.parent / "frontend" / "watchcraft-frontend" / "public" / "img"
 app = FastAPI(title="SeimastersCraft API")
-
-if IMG_DIR.exists():
-    app.mount("/img", StaticFiles(directory=str(IMG_DIR)), name="images")
-# ako ne postoji, samo nastavi bez statične posluge
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# inicijalna izrada tablica + seedanje
+# inicijalna izrada tablica i seedanje
 init_db()
 def init_components():
     SQLModel.metadata.create_all(engine)
@@ -53,7 +43,6 @@ def create_order(
     config: WatchConfiguration,
     session: Session = Depends(get_session)
 ):
-    # PROVJERA DUPLIKATA
     existing = session.exec(
         select(WatchConfiguration).where(
             WatchConfiguration.case == config.case,
@@ -75,7 +64,6 @@ def create_order(
     if existing:
         raise HTTPException(400, "Ova narudžba je već poslana.")
 
-    # ako frontend nije poslao price, izračunaj
     if not config.price:
         def _price(m, name):
             return session.exec(select(m.price).where(m.name == name)).first() or 0
@@ -92,7 +80,6 @@ def create_order(
     session.refresh(config)
 
     subject = "Potvrda narudžbe – SeimastersCraft"
-    # PLAIN
     body_plain = f"""
 Hvala na narudžbi!
 
@@ -115,7 +102,6 @@ Način plaćanja: {config.payment_method}
 
 Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.
 """
-    # HTML
     body_html = f"""
 <p>Hvala na narudžbi!</p>
 <h3>Konfiguracija sata:</h3>
@@ -139,10 +125,9 @@ Napomena: Slika vašeg sata će vam biti poslana u roku 24–48 sati.
 <p><em>Napomena: Slika vašeg sata stiže u 24–48h.</em></p>
 """
 
-    # POŠALJI MAILOVE
     send_email(config.customer_email, subject, body_plain, body_html)
     send_email(
-        os.environ["GMAIL_USER"],  # tvoj gmail iz okoline
+        os.environ["GMAIL_USER"],
         "Nova narudžba",
         body_plain,
         body_html,
@@ -156,33 +141,25 @@ def admin_list(session: Session = Depends(get_session)):
     return session.exec(select(WatchConfiguration)).all()
 
 
-# OSTALE endpoints...
 @app.get("/components/{typ}", response_model=List)
 def list_components(typ: str, session: Session = Depends(get_session)):
-    model = {"cases": Case, "dials": Dial, "hands": Hands, "straps": Strap, "boxes": Box}[typ]
+    model = {
+        "cases": Case,
+        "dials": Dial,
+        "hands": Hands,
+        "straps": Strap,
+        "boxes": Box
+    }.get(typ)
+    if not model:
+        raise HTTPException(404, "Nepoznat tip komponente.")
     return session.exec(select(model)).all()
 
 
 @app.get("/image-components")
 def image_components(type: str = Query(..., regex="^(case|dial|hands|strap|box)$")):
-    folder = IMG_DIR / type
-    if not folder.exists():
-        raise HTTPException(404, "Folder ne postoji.")
-    out = []
-    for f in folder.glob("*.png"):
-        m = re.match(rf"{type}-([a-z0-9\-]+)-(\d+)[€]?.png", f.name, re.IGNORECASE)
-        if m:
-            out.append({
-                "name": m.group(1).replace("-", " ").title(),
-                "price": int(m.group(2)),
-                "filename": f"{type}/{f.name}"
-            })
-    return out
+    raise HTTPException(404, "Serviranje slika je onemogućeno na backendu.")
 
 
-# ---------------------------------------------
-# Start server kad pokreneš `python main.py`
-# ---------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
